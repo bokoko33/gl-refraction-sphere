@@ -3,13 +3,11 @@ import Stats from 'stats.js';
 import { config } from '~/js/webgl/config';
 import { Stage } from '~/js/webgl/Stage';
 import { SampleScreen } from '~/js/webgl/SampleScreen';
-import { SampleObject } from '~/js/webgl/SampleObject';
+import { Sphere } from '~/js/webgl/Sphere';
+import { Background } from '~/js/webgl/Background';
 import { Mouse2D } from '~/js/utils/Mouse2D';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { MouseDisplacement } from '~/js/webgl/MouseDisplacement';
 import { GLCanvas } from '~/js/webgl/GLCanvas';
-import screenVertexShader from '~/glsl/screen.vert';
-import screenFragmentShader from '~/glsl/screen.frag';
 
 export class WebGL {
   constructor({ canvasWrapper, canvas, isDev = false, selfLoop = true }) {
@@ -32,46 +30,28 @@ export class WebGL {
       isOffscreen: true,
     });
 
-    this.sampleBg = new SampleScreen({
+    this.offPlane = new SampleScreen({
       viewSize: viewSize,
     });
-    this.offStage.scene.add(this.sampleBg.mesh);
-
-    this.sampleObj = new SampleObject();
-    this.offStage.scene.add(this.sampleObj.mesh);
+    this.offStage.scene.add(this.offPlane.mesh);
 
     // render scene
     this.stage = new Stage({
       viewSize: viewSize,
-      cameraType: 'perspectiveFit',
+      cameraType: 'perspective',
     });
 
-    const screenGeo = new THREE.PlaneGeometry(2, 2);
-    const screenMat = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uResolution: {
-          value: new THREE.Vector2(viewSize.width, viewSize.height),
-        },
-        uSceneTexture: { value: null },
-        uDisplacementTexture: { value: null },
-      },
-      vertexShader: screenVertexShader,
-      fragmentShader: screenFragmentShader,
-      transparent: false,
-      depthTest: false,
-      depthWrite: false,
+    this.bg = new Background();
+    this.stage.scene.add(this.bg.mesh);
+
+    this.sphere = new Sphere({
+      screenCoord: this.calcScreenCoord(),
     });
-    this.screenMesh = new THREE.Mesh(screenGeo, screenMat);
-    this.stage.scene.add(this.screenMesh);
+    this.stage.scene.add(this.sphere.mesh);
 
     this.lastTime = this.getTime();
 
     this.mouse = Mouse2D.instance;
-
-    this.mouseDisplacement = new MouseDisplacement({
-      viewSize: this.glCanvas.viewSize,
-    });
 
     if (this.selfLoop) {
       this.ticker();
@@ -93,6 +73,13 @@ export class WebGL {
     }
   }
 
+  calcScreenCoord = () => {
+    const { width, height } = this.glCanvas.viewSize;
+    return new THREE.Vector2(width, height).multiplyScalar(
+      window.devicePixelRatio
+    );
+  };
+
   getTime = () => {
     return performance.now() * 0.001;
   };
@@ -107,27 +94,17 @@ export class WebGL {
     this.stats?.begin();
 
     const time = this.getTime();
-    const deltaTime = time - this.lastTime;
-    const timeScale = this.getTimeScale(deltaTime);
+    // const deltaTime = time - this.lastTime;
+    // const timeScale = this.getTimeScale(deltaTime);
     this.lastTime = time;
 
     // off render
-    this.sampleBg.update({ time, mouse: this.mouse.normalizedPosition });
-    this.sampleObj.update({ deltaTime });
+    this.offPlane.update({ time });
     this.glCanvas.offscreenRender(this.offStage);
 
-    this.mouseDisplacement.update({
-      mouse: this.mouse.relativePositionForGL,
-    });
-    this.glCanvas.offscreenRender(this.mouseDisplacement.stage);
-
     // main render
-    const screenUniforms = this.screenMesh.material.uniforms;
-    screenUniforms.uTime.value = time;
-    screenUniforms.uSceneTexture.value = this.offStage.renderTarget.texture;
-    screenUniforms.uDisplacementTexture.value =
-      this.mouseDisplacement.stage.renderTarget.texture;
-
+    this.sphere.update({ time, texture: this.offStage.renderTarget.texture });
+    this.bg.update({ texture: this.offStage.renderTarget.texture });
     this.glCanvas.render(this.stage);
 
     this.stats?.end();
@@ -143,23 +120,6 @@ export class WebGL {
 
     this.stage.resize(newSize);
 
-    this.mouseDisplacement.resize(newSize);
-
-    this.sampleBg.resize(newSize);
-
-    this.mesh.material.uniforms.uResolution.value.set(
-      newSize.width,
-      newSize.height
-    );
-  };
-
-  dispose = () => {
-    this.sampleBg.dispose(this.stage);
-    this.sampleObj.dispose(this.stage);
-
-    this.mouseDisplacement.dispose(this.stage);
-    this.stage.dispose();
-
-    window.removeEventListener('resize', this.resize);
+    this.offPlane.resize(newSize);
   };
 }

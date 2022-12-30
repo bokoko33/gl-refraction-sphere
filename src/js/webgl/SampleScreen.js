@@ -66,9 +66,8 @@ export class SampleScreen {
     }
   }
 
-  update = ({ time, mouse }) => {
+  update = ({ time }) => {
     this.mesh.material.uniforms.uTime.value = time;
-    this.mesh.material.uniforms.uMouse.value.set(mouse.x, mouse.y);
   };
 
   resize = (viewSize) => {

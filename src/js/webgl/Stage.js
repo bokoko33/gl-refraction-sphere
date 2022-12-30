@@ -47,7 +47,7 @@ export class Stage {
       this.camera.position.z = dist;
     } else {
       // 任意の距離
-      this.camera.position.z = 300;
+      this.camera.position.z = 5;
     }
 
     this.camera.updateProjectionMatrix();
