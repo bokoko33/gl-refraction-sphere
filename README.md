@@ -1,9 +1,5 @@
-# Three.js Simple Template with Vite
+# GL Refraction Sphere
 
-```
-git clone git@github.com:bokoko33/three-template.git
-cd three-template
-git remote remove origin
-npm ci
-npm run dev
-```
+## reference
+https://github.com/nemutas/ha-labo-effect  
+https://zenn.dev/junni/articles/bb71f44c89cb77
